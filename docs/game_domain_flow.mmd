@@ -1,0 +1,45 @@
+sequenceDiagram
+    %% Participants par couche architecturale
+    participant Client
+    
+    %% Couche Infrastructure (Controllers)
+    participant GameController
+    Note over GameController: Infrastructure Layer<br/>Gère les requêtes HTTP<br/>Utilise les DTOs<br/>@Controller('games')
+    
+    %% Couche Application
+    participant GameService
+    Note over GameService: Application Layer<br/>Orchestre les cas d'utilisation<br/>Injecte les repositories
+    
+    %% Couche Infrastructure (Adapters)
+    participant FederatedGamesAdapter
+    Note over FederatedGamesAdapter: Infrastructure Layer<br/>Implémente GameRepository<br/>Agrège les données des APIs
+    
+    participant API1
+    Note over API1: External API<br/>https://api1.example.com
+    
+    participant API2
+    Note over API2: External API<br/>https://api2.example.com
+
+    %% Flow de la requête
+    Client->>GameController: GET /games
+    Note over GameController: @Get()<br/>@ApiOperation()<br/>@ApiResponse()
+    
+    GameController->>GameService: getGames()
+    Note over GameService: Injection du FederatedGamesAdapter<br/>via INJECTION_TOKENS.GAME_REPOSITORY
+    
+    GameService->>FederatedGamesAdapter: findAll()
+    
+    par API1
+        FederatedGamesAdapter->>API1: GET /games
+        API1-->>FederatedGamesAdapter: Games data
+    and API2
+        FederatedGamesAdapter->>API2: GET /games
+        API2-->>FederatedGamesAdapter: Games data
+    end
+    
+    Note over FederatedGamesAdapter: Mapping et fusion<br/>des données en entités Game
+    FederatedGamesAdapter-->>GameService: Game[] domain entities
+    GameService-->>GameController: Game[] domain entities
+    Note over GameController: Sérialisation auto<br/>par NestJS
+    
+    GameController-->>Client: HTTP 200 + Game[]
